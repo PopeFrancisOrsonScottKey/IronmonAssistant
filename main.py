@@ -1,5 +1,7 @@
 import requests
 
+from typeResistances import get_dual_type, calculate_defensive_score
+
 
 def get_pokemon_data(url):
     response = requests.get(url)
@@ -13,10 +15,10 @@ def get_pokemon_data(url):
 def get_fast_growth_pokemon(generation_name, desired_growth_rate):
     weighted_moves_multiplier = 10
     fast_growth_pokemon = []
-    for i in range(1, 899):  # Assuming there are 898 Pokémon in the API
+    for i in range(706, 708):  # Assuming there are 898 Pokémon in the API
         pokemon_data = get_pokemon_data(f"https://pokeapi.co/api/v2/pokemon-species/{i}/")
         if pokemon_data:
-            print(pokemon_data['name'])
+            # print(pokemon_data['name'])
             growth_rate = pokemon_data['growth_rate']['name']
             if growth_rate == desired_growth_rate or not growth_rate:
                 weighted_moves_value = learns_moves_by_leveling_up(pokemon_data['id'], generation_name) * weighted_moves_multiplier
@@ -44,9 +46,29 @@ def learns_moves_by_leveling_up(pokemon_id, generation_name):
     return count
 
 
+def get_type_score(type_block):
+    if len(type_block) == 2:
+        print("dual type")
+        return calculate_defensive_score(get_dual_type(type_block[0]["type"]["name"], type_block[1]["type"]["name"]))
+    else:
+        print("mono type")
+        print(type_block[0]["type"]["name"])
+        calculate_defensive_score(type_block[0]["type"]["name"])
+    pass
+
+
+def weigh_type_score(type_score, immunities):
+    weighted_score = 600 - ((600/(4**18)) - ((600/(4**18)) - 100) * (.25/4)**(18*type_score))
+    print(type_score)
+    print(weighted_score)
+    return weighted_score
+
+
 def get_base_stat_total(pokemon_name):
     pokemon_data = get_pokemon_data(f"https://pokeapi.co/api/v2/pokemon/{pokemon_name}/")
     if pokemon_data:
+        type_score, immunities = get_type_score(pokemon_data["types"])
+        weighted_type_score = weigh_type_score(type_score, immunities)
         base_stats = pokemon_data['stats']
         base_stat_total = sum(stat['base_stat'] for stat in base_stats)
         if base_stat_total >= 600:

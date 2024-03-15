@@ -1,5 +1,7 @@
-def get_dual_type(type1, type2):
+def get_dual_type(type1_name, type2_name):
     dual_type = []
+    type1 = get_type_stats_from_name(type1_name)
+    type2 = get_type_stats_from_name(type2_name)
     for typeIdx in range(len(type1)):
         dual_type.append(
             {"type": type1[typeIdx]["type"], "resistance": type1[typeIdx]["resistance"] * type2[typeIdx]["resistance"]})
