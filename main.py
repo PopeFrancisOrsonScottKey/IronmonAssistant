@@ -13,7 +13,7 @@ def get_pokemon_data(url):
 def get_fast_growth_pokemon(generation_name, desired_growth_rate):
     weighted_moves_multiplier = 10
     fast_growth_pokemon = []
-    for i in range(1, 400):  # Assuming there are 898 Pokémon in the API
+    for i in range(1, 899):  # Assuming there are 898 Pokémon in the API
         pokemon_data = get_pokemon_data(f"https://pokeapi.co/api/v2/pokemon-species/{i}/")
         if pokemon_data:
             print(pokemon_data['name'])
