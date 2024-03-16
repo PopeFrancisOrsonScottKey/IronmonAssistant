@@ -1,6 +1,6 @@
 import requests
 
-from typeResistances import get_dual_type, calculate_defensive_score
+from typeResistances import get_dual_type, calculate_defensive_score, get_type_stats_from_name
 
 
 def get_pokemon_data(url):
@@ -12,18 +12,17 @@ def get_pokemon_data(url):
         return None
 
 
-def get_fast_growth_pokemon(generation_name, desired_growth_rate):
+def get_pokemon_by_growth(generation_name, desired_growth_rate):
     weighted_moves_multiplier = 10
-    fast_growth_pokemon = []
-    for i in range(706, 708):  # Assuming there are 898 Pokémon in the API
+    pokemon_by_growth = []
+    for i in range(1, 899):  # Assuming there are 898 Pokémon in the API
         pokemon_data = get_pokemon_data(f"https://pokeapi.co/api/v2/pokemon-species/{i}/")
         if pokemon_data:
-            # print(pokemon_data['name'])
             growth_rate = pokemon_data['growth_rate']['name']
-            if growth_rate == desired_growth_rate or not growth_rate:
+            if growth_rate == desired_growth_rate or not desired_growth_rate:
                 weighted_moves_value = learns_moves_by_leveling_up(pokemon_data['id'], generation_name) * weighted_moves_multiplier
-                fast_growth_pokemon.append({"name": pokemon_data['name'], "weighted_value": weighted_moves_value})
-    return fast_growth_pokemon
+                pokemon_by_growth.append({"name": pokemon_data['name'], "weighted_value": weighted_moves_value})
+    return pokemon_by_growth
 
 
 def check_all_learn_methods(move_detail, generation_name):
@@ -42,48 +41,47 @@ def learns_moves_by_leveling_up(pokemon_id, generation_name):
         for move in moves_data['moves']:
             if 'version_group_details' in move:
                 count += check_all_learn_methods(move, generation_name)
-    print(count)
     return count
 
 
 def get_type_score(type_block):
     if len(type_block) == 2:
-        print("dual type")
-        return calculate_defensive_score(get_dual_type(type_block[0]["type"]["name"], type_block[1]["type"]["name"]))
+        combined_type_block = get_dual_type(type_block[0]["type"]["name"], type_block[1]["type"]["name"])
     else:
-        print("mono type")
-        print(type_block[0]["type"]["name"])
-        calculate_defensive_score(type_block[0]["type"]["name"])
-    pass
+        combined_type_block = get_type_stats_from_name(type_block[0]["type"]["name"])
+    return calculate_defensive_score(combined_type_block)
 
 
-def weigh_type_score(type_score, immunities):
-    weighted_score = 600 - ((600/(4**18)) - ((600/(4**18)) - 100) * (.25/4)**(18*type_score))
-    print(type_score)
-    print(weighted_score)
-    return weighted_score
+def weigh_type_score(type_score, immunities, weakness_score):
+    resistance_and_weakness_score = ((type_score / (type_score + 5)) * 100)
+    immunity_score = (25 * immunities)
+    weakness_score = ((weakness_score / (weakness_score + .05)) * 20)
+    if resistance_and_weakness_score > weakness_score:
+        return resistance_and_weakness_score + immunity_score - weakness_score
+    return immunity_score
 
 
 def get_base_stat_total(pokemon_name):
     pokemon_data = get_pokemon_data(f"https://pokeapi.co/api/v2/pokemon/{pokemon_name}/")
     if pokemon_data:
-        type_score, immunities = get_type_score(pokemon_data["types"])
-        weighted_type_score = weigh_type_score(type_score, immunities)
+        type_score, immunities, weakness_score = get_type_score(pokemon_data["types"])
+        weighted_type_score = weigh_type_score(type_score, immunities, weakness_score)
         base_stats = pokemon_data['stats']
         base_stat_total = sum(stat['base_stat'] for stat in base_stats)
         if base_stat_total >= 600:
-            print(f"'{pokemon_name}' is excluded due to having too high of a BST- '{base_stat_total}'.")
-            return 0
-        return base_stat_total
-    return 0
+            print(f"This pokemon's BST exceeds the allowed BST. You may evolve into it, but you cannot choose it - {pokemon_data["name"]}")
+            return 0, 0
+        return base_stat_total, weighted_type_score
+    return 0, 0
 
 
-def find_highest_base_stat_total(fast_growth_pokemon):
+def find_highest_base_stat_total(filter_pokemon):
     best_pokemon = []
-    for pokemon in fast_growth_pokemon:
-        base_stat_total = get_base_stat_total(pokemon["name"])
-        calculated_value = base_stat_total + pokemon["weighted_value"]
-        best_pokemon.append({"name": pokemon["name"], "bst": base_stat_total, "calculated_value": calculated_value})
+    for pokemon in filter_pokemon:
+        base_stat_total, typing_score = get_base_stat_total(pokemon["name"])
+        print(f"{pokemon["name"]} has base stat total of {base_stat_total} and weighted move value of {pokemon["weighted_value"]} and typing score of {typing_score}")
+        calculated_value = base_stat_total + pokemon["weighted_value"] + typing_score
+        best_pokemon.append({"name": pokemon["name"], "bst": base_stat_total, "calculated_value": int(calculated_value)})
         best_pokemon = sorted(best_pokemon, key=lambda x: x["calculated_value"])
         if len(best_pokemon) > 10:
             best_pokemon.pop(0)
@@ -97,10 +95,10 @@ if __name__ == "__main__":
     # Set growth rate to look for. If you don't want to filter by growth rate, then leave this blank
     # Options for growth rate are:
     # slow, medium-slow, medium, fast (This seems to be different from what's listed on bulbapedia)
-    growth_rate = "fast"
-    fast_growth_pokemon = get_fast_growth_pokemon(generation_name, growth_rate)
-    if fast_growth_pokemon:
-        top_ten_pokemon = find_highest_base_stat_total(fast_growth_pokemon)
+    growth_rate = ""
+    filtered_pokemon = get_pokemon_by_growth(generation_name, growth_rate)
+    if filtered_pokemon:
+        top_ten_pokemon = find_highest_base_stat_total(filtered_pokemon)
         place = 10
         for pokemon in top_ten_pokemon:
             print(f"At number '{place}' is '{pokemon["name"]}'")
@@ -108,4 +106,4 @@ if __name__ == "__main__":
             print(f"Total score: '{pokemon["calculated_value"]}'\n")
             place -= 1
     else:
-        print("No fast growth rate Pokémon found that learn moves by leveling up.")
+        print("No Pokémon found that learn moves by leveling up.")

@@ -9,14 +9,17 @@ def get_dual_type(type1_name, type2_name):
 
 
 def calculate_defensive_score(types):
+    weakness_score = 1
     ongoing_score = 1
     immunities = 0
     for type in types:
         if type["resistance"] != 0:
-            ongoing_score *= type["resistance"]
+            ongoing_score *= 1 / type["resistance"]
+            if type["resistance"] < 1:
+                weakness_score *= type["resistance"]
         else:
             immunities += 1
-    return ongoing_score, immunities
+    return ongoing_score, immunities, weakness_score
 
 
 def get_normal_type_defenses():
