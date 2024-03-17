@@ -8,7 +8,7 @@ def get_pokemon_data(url):
     if response.status_code == 200:
         return response.json()
     else:
-        print("Failed to fetch data from API")
+        # print("Failed to fetch data from API")
         return None
 
 
@@ -52,20 +52,18 @@ def get_type_score(type_block):
     return calculate_defensive_score(combined_type_block)
 
 
-def weigh_type_score(type_score, immunities, weakness_score):
+def weigh_type_score(type_score, immunities, double_weakness_score):
     resistance_and_weakness_score = ((type_score / (type_score + 5)) * 100)
-    immunity_score = (25 * immunities)
-    weakness_score = ((weakness_score / (weakness_score + .05)) * 20)
-    if resistance_and_weakness_score > weakness_score:
-        return resistance_and_weakness_score + immunity_score - weakness_score
-    return immunity_score
+    immunity_score = 10 * immunities
+    double_weakness_score = 25 * double_weakness_score
+    return resistance_and_weakness_score + immunity_score - double_weakness_score if resistance_and_weakness_score + immunity_score > double_weakness_score else 0
 
 
 def get_base_stat_total(pokemon_name):
     pokemon_data = get_pokemon_data(f"https://pokeapi.co/api/v2/pokemon/{pokemon_name}/")
     if pokemon_data:
-        type_score, immunities, weakness_score = get_type_score(pokemon_data["types"])
-        weighted_type_score = weigh_type_score(type_score, immunities, weakness_score)
+        type_score, immunities, double_weakness_score = get_type_score(pokemon_data["types"])
+        weighted_type_score = weigh_type_score(type_score, immunities, double_weakness_score)
         base_stats = pokemon_data['stats']
         base_stat_total = sum(stat['base_stat'] for stat in base_stats)
         if base_stat_total >= 600:
@@ -79,7 +77,7 @@ def find_highest_base_stat_total(filter_pokemon):
     best_pokemon = []
     for pokemon in filter_pokemon:
         base_stat_total, typing_score = get_base_stat_total(pokemon["name"])
-        print(f"{pokemon["name"]} has base stat total of {base_stat_total} and weighted move value of {pokemon["weighted_value"]} and typing score of {typing_score}")
+        # print(f"{pokemon["name"]} has base stat total of {base_stat_total} and weighted move value of {pokemon["weighted_value"]} and typing score of {typing_score}")
         calculated_value = base_stat_total + pokemon["weighted_value"] + typing_score
         best_pokemon.append({"name": pokemon["name"], "bst": base_stat_total, "calculated_value": int(calculated_value)})
         best_pokemon = sorted(best_pokemon, key=lambda x: x["calculated_value"])
